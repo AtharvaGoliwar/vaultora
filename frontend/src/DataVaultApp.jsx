@@ -147,6 +147,15 @@ const DataVaultApp = () => {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    value: "",
+    category: "",
+    encrypted: false,
+  });
+
   useEffect(() => {
     const getMe = async () => {
       try {
@@ -309,6 +318,33 @@ const DataVaultApp = () => {
     }
   };
 
+  const handleSaveItem = async () => {
+    if (!formData.name || !formData.value) {
+      alert("Name and value are required.");
+      return;
+    }
+
+    try {
+      let res = await axios.post(
+        "http://localhost:8080/set",
+        { key: groupname + ":" + formData.name, value: formData.value },
+        { headers: { Username: "def" } }
+      );
+      console.log(res.data);
+      const item = {
+        id: vaultItemsNew.length + 1,
+        name: formData.name,
+        type: formData.category,
+        encrypted: formData.encrypted,
+      };
+      setVaultItemsNew((prev) => [...prev, item]);
+      setShowAddModal(false);
+      setFormData({ name: "", value: "", category: "", encrypted: false });
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   const handleClosePasswordPrompt = () => {
     setShowPasswordPrompt(null);
     setPassword("");
@@ -362,7 +398,10 @@ const DataVaultApp = () => {
               />
             </div>
 
-            <button className="btn-primary">
+            <button
+              className="btn-primary"
+              onClick={() => setShowAddModal(true)}
+            >
               <span>➕</span>
               Add Files
             </button>
@@ -490,6 +529,97 @@ const DataVaultApp = () => {
                     }}
                   >
                     Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showAddModal && (
+            <div className="password-overlay">
+              <div className="password-modal">
+                <div className="password-header">
+                  <h3>{isEditing ? "Edit Item" : "Add New Item"}</h3>
+                  <button
+                    className="close-btn"
+                    onClick={() => setShowAddModal(false)}
+                  >
+                    X
+                  </button>
+                </div>
+
+                <div className="password-description">
+                  <label>
+                    Name:
+                    <input
+                      type="text"
+                      className="password-input"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      placeholder="Enter name"
+                    />
+                  </label>
+
+                  <label>
+                    Value:
+                    <input
+                      type="text"
+                      className="password-input"
+                      value={formData.value}
+                      onChange={(e) =>
+                        setFormData({ ...formData, value: e.target.value })
+                      }
+                      placeholder="Enter value"
+                    />
+                  </label>
+
+                  <label>
+                    Category:
+                    <select
+                      className="password-input"
+                      value={formData.category}
+                      onChange={(e) =>
+                        setFormData({ ...formData, category: e.target.value })
+                      }
+                    >
+                      <option value="">Select category</option>
+                      <option value="cred">Credentials</option>
+                      <option value="file">File</option>
+                      <option value="img">Image</option>
+                    </select>
+                  </label>
+                  <br />
+                  <br />
+                  <label className="checkbox-field">
+                    Encrypted
+                    <input
+                      // className="password-input"
+                      type="checkbox"
+                      checked={formData.encrypted}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          encrypted: e.target.checked,
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+
+                <div className="password-actions">
+                  <button
+                    className="btn-secondary"
+                    onClick={() => setShowAddModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn-primary"
+                    onClick={() => handleSaveItem()}
+                  >
+                    {isEditing ? "Update" : "Add"}
                   </button>
                 </div>
               </div>

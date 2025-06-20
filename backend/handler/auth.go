@@ -4,7 +4,6 @@ import (
 	"data-vault/redisclient"
 	"data-vault/session"
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -33,7 +32,7 @@ func RedisAuthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// resp, _ := conn.ReadReply()
-	fmt.Println(reply)
+	// fmt.Println(reply)
 	if reply != "+OK\r\n" {
 		http.Error(w, "AUTH rejected", http.StatusUnauthorized)
 		return

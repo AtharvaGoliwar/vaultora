@@ -5,7 +5,7 @@ import axios from "axios";
 
 const DataVaultApp = () => {
   const [viewMode, setViewMode] = useState("grid");
-  const [selectedItems, setSelectedItems] = useState([]);
+  const [selectedItems, setSelectedItems] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [expandedItem, setExpandedItem] = useState(null);
@@ -145,13 +145,15 @@ const DataVaultApp = () => {
   const [groupname, setGroupname] = useState("");
   const [username, setUsername] = useState("");
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   useEffect(() => {
     const getMe = async () => {
       try {
         let res = await axios.get("http://localhost:8080/me", {
           headers: { Username: "def" },
         });
-        setGroupname(res.data.groupname);
+        setGroupname(res.data.group);
         // setUsername(res.data.username);
         console.log(res.data);
       } catch (err) {
@@ -231,7 +233,7 @@ const DataVaultApp = () => {
     return icons[type] || "📄";
   };
 
-  const handleItemClick = (item, event) => {
+  const handleItemClick = async (item, event) => {
     setCurrItem(item);
     if (expandedItem === item.id) {
       setExpandedItem(null);
@@ -250,6 +252,22 @@ const DataVaultApp = () => {
       setPassword("");
     } else {
       setExpandedItem(expandedItem === item.id ? null : item.id);
+      if (item.hiddenContent === undefined) {
+        try {
+          let res = await axios.get("http://localhost:8080/get", {
+            headers: { Username: "def" },
+            params: { key: groupname + ":" + item.name },
+          });
+          let val = { hiddenContent: res.data.value };
+          setVaultItemsNew((prevItems) =>
+            prevItems.map((check) =>
+              check.id === item.id ? { ...check, ...val } : check
+            )
+          );
+        } catch (err) {
+          console.log(err);
+        }
+      }
     }
   };
 
@@ -267,19 +285,50 @@ const DataVaultApp = () => {
     }
   };
 
+  const handleDeleteKey = async (keyItem) => {
+    try {
+      let res = await axios.post(
+        "http://localhost:8080/delete",
+        { key: groupname + ":" + keyItem.name },
+        {
+          headers: { Username: "def" },
+        }
+      );
+      if (res.data.reply == 1) {
+        alert("successfully deleted");
+        setVaultItemsNew((items) =>
+          items.filter((item) => item.id !== keyItem.id)
+        );
+        setSelectedItems(null);
+      }
+      if (res.data.reply == 0) {
+        alert("no deletion");
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   const handleClosePasswordPrompt = () => {
     setShowPasswordPrompt(null);
     setPassword("");
   };
 
-  const toggleSelection = (id, event) => {
+  const toggleSelection = (itemKey, event) => {
     event.stopPropagation();
-    setSelectedItems((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
+    // setSelectedItems((prev) =>
+    //   prev.includes(itemKey)
+    //     ? prev.filter((item) => item !== itemKey)
+    //     : [...prev, itemKey]
+    // );
+    if (selectedItems === itemKey) {
+      setSelectedItems(null);
+    } else {
+      setSelectedItems(itemKey);
+    }
   };
 
-  const filteredItems = vaultItems.filter((item) => {
+  const filteredItems = vaultItemsNew.filter((item) => {
     const matchesSearch = item.name
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
@@ -409,6 +458,43 @@ const DataVaultApp = () => {
               </div>
             </div>
           </div>
+          {showDeleteConfirm && (
+            <div className="password-overlay">
+              <div className="password-modal">
+                <div className="password-header">
+                  <h3>Confirm Deletion</h3>
+                  <button
+                    className="close-btn"
+                    onClick={() => setShowDeleteConfirm(false)}
+                  >
+                    X
+                  </button>
+                </div>
+                <p className="password-description">
+                  Are you sure you want to delete{" "}
+                  <strong>{selectedItems?.name}</strong>? This action cannot be
+                  undone.
+                </p>
+                <div className="password-actions">
+                  <button
+                    className="btn-secondary"
+                    onClick={() => setShowDeleteConfirm(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn-primary"
+                    onClick={() => {
+                      handleDeleteKey(selectedItems);
+                      setShowDeleteConfirm(false);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Password Prompt Modal */}
           {showPasswordPrompt && (
@@ -478,7 +564,7 @@ const DataVaultApp = () => {
                 <div key={item.id} className="file-card-container">
                   <div
                     className={`file-card ${
-                      selectedItems.includes(item.id) ? "selected" : ""
+                      selectedItems === item ? "selected" : ""
                     } ${expandedItem === item.id ? "expanded" : ""}`}
                     onClick={(e) => handleItemClick(item, e)}
                   >
@@ -494,10 +580,10 @@ const DataVaultApp = () => {
                           className="action-btn"
                           onClick={(e) => {
                             e.stopPropagation();
-                            toggleSelection(item.id, e);
+                            toggleSelection(item, e);
                           }}
                         >
-                          {selectedItems.includes(item.id) ? "✓" : "⋮"}
+                          {selectedItems === item ? "✓" : "⋮"}
                         </button>
                       </div>
                     </div>
@@ -508,8 +594,8 @@ const DataVaultApp = () => {
                     {expandedItem === item.id && (
                       <div className="expanded-content">
                         <div className="expanded-header">
-                          <h4>Details</h4>
-                          <button
+                          <h6>Value</h6>
+                          {/* <button
                             className="close-btn"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -517,14 +603,14 @@ const DataVaultApp = () => {
                             }}
                           >
                             ✕
-                          </button>
+                          </button> */}
                         </div>
                         <div className="expanded-body">
                           <p className="content-description">
-                            {item.hiddenContent.description}
+                            {item.hiddenContent}
                           </p>
 
-                          {item.hiddenContent.files && (
+                          {/* {item.hiddenContent.files && (
                             <div className="file-list">
                               <strong>Files:</strong>
                               <ul>
@@ -533,20 +619,20 @@ const DataVaultApp = () => {
                                 ))}
                               </ul>
                             </div>
-                          )}
+                          )} */}
 
-                          {item.hiddenContent.content && (
+                          {/* {item.hiddenContent.content && (
                             <div className="content-preview">
                               <strong>Content:</strong>
                               <p>{item.hiddenContent.content}</p>
                             </div>
-                          )}
+                          )} */}
 
-                          <div className="access-info">
+                          {/* <div className="access-info">
                             <small>
                               Last accessed: {item.hiddenContent.lastAccessed}
                             </small>
-                          </div>
+                          </div> */}
                         </div>
                       </div>
                     )}
@@ -558,8 +644,8 @@ const DataVaultApp = () => {
             <div className="files-list">
               <div className="list-header">
                 <div className="list-col-name">Name</div>
-                <div className="list-col-size">Size</div>
-                <div className="list-col-modified">Modified</div>
+                {/* <div className="list-col-size">Size</div>
+                <div className="list-col-modified">Modified</div> */}
                 <div className="list-col-actions">Actions</div>
               </div>
               <div className="list-body">
@@ -567,7 +653,7 @@ const DataVaultApp = () => {
                   <div key={item.id} className="list-item-container">
                     <div
                       className={`list-row ${
-                        selectedItems.includes(item.id) ? "selected" : ""
+                        selectedItems === item ? "selected" : ""
                       } ${expandedItem === item.id ? "expanded" : ""}`}
                       onClick={(e) => handleItemClick(item, e)}
                     >
@@ -582,18 +668,18 @@ const DataVaultApp = () => {
                           )}
                         </div>
                       </div>
-                      <div className="list-col-size">{item.size}</div>
-                      <div className="list-col-modified">{item.modified}</div>
+                      {/* <div className="list-col-size">{item.size}</div>
+                      <div className="list-col-modified">{item.modified}</div> */}
                       <div className="list-col-actions">
                         <button
                           className="action-btn"
                           title="Select"
                           onClick={(e) => {
                             e.stopPropagation();
-                            toggleSelection(item.id, e);
+                            toggleSelection(item, e);
                           }}
                         >
-                          {selectedItems.includes(item.id) ? "✓" : "◯"}
+                          {selectedItems === item ? "✓" : "◯"}
                         </button>
                         <button className="action-btn" title="View">
                           👁️
@@ -604,7 +690,11 @@ const DataVaultApp = () => {
                         <button className="action-btn" title="Share">
                           🔗
                         </button>
-                        <button className="action-btn danger" title="Delete">
+                        <button
+                          className="action-btn danger"
+                          title="Delete"
+                          onClick={() => setShowDeleteConfirm(true)}
+                        >
                           🗑️
                         </button>
                       </div>
@@ -613,8 +703,8 @@ const DataVaultApp = () => {
                     {expandedItem === item.id && (
                       <div className="list-expanded-content">
                         <div className="expanded-header">
-                          <h4>Details</h4>
-                          <button
+                          <h6>Value</h6>
+                          {/* <button
                             className="close-btn"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -622,14 +712,14 @@ const DataVaultApp = () => {
                             }}
                           >
                             ✕
-                          </button>
+                          </button> */}
                         </div>
                         <div className="expanded-body">
                           <p className="content-description">
-                            {item.hiddenContent.description}
+                            {item.hiddenContent}
                           </p>
 
-                          {item.hiddenContent.files && (
+                          {/* {item.hiddenContent.files && (
                             <div className="file-list">
                               <strong>Files:</strong>
                               <ul>
@@ -638,20 +728,20 @@ const DataVaultApp = () => {
                                 ))}
                               </ul>
                             </div>
-                          )}
+                          )} */}
 
-                          {item.hiddenContent.content && (
+                          {/* {item.hiddenContent.content && (
                             <div className="content-preview">
                               <strong>Content:</strong>
                               <p>{item.hiddenContent.content}</p>
                             </div>
-                          )}
+                          )} */}
 
-                          <div className="access-info">
+                          {/* <div className="access-info">
                             <small>
                               Last accessed: {item.hiddenContent.lastAccessed}
                             </small>
-                          </div>
+                          </div> */}
                         </div>
                       </div>
                     )}
@@ -661,7 +751,7 @@ const DataVaultApp = () => {
             </div>
           )}
 
-          {selectedItems.length > 0 && (
+          {selectedItems && (
             <div className="selection-toolbar">
               <div className="selection-info">
                 <span>{selectedItems.length} items selected</span>
@@ -673,11 +763,15 @@ const DataVaultApp = () => {
                 <button className="selection-btn" title="Share">
                   🔗
                 </button>
-                <button className="selection-btn danger" title="Delete">
+                <button
+                  className="selection-btn danger"
+                  title="Delete"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
                   🗑️
                 </button>
                 <button
-                  onClick={() => setSelectedItems([])}
+                  onClick={() => setSelectedItems(null)}
                   className="selection-clear"
                 >
                   Clear

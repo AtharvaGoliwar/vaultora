@@ -4,6 +4,8 @@ import (
 	"data-vault/session"
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 type DeleteRequest struct {
@@ -39,11 +41,18 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Redis error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if reply == ":0\r\n" {
-		w.WriteHeader(http.StatusNoContent)
-		json.NewEncoder(w).Encode(map[string]string{"reply": reply})
+	parts := strings.Split(reply, "\r\n")
+	if len(parts) > 0 && strings.HasPrefix(parts[0], ":") {
+		valStr := strings.TrimPrefix(parts[0], ":")
+		valInt, err := strconv.Atoi(valStr)
+		if err != nil {
+			http.Error(w, "Invalid integer format", http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]int{"reply": valInt})
+		return
 	}
+
 	// resp, _ := conn.ReadReply()
 	// w.Write([]byte(resp))
-	json.NewEncoder(w).Encode(map[string]string{"reply": reply})
 }

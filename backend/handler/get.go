@@ -2,7 +2,10 @@ package handler
 
 import (
 	"data-vault/session"
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 )
 
 // func GetHandler(w http.ResponseWriter, r *http.Request) {
@@ -61,5 +64,23 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte(reply))
+	// Manual RESP bulk string parsing
+	reply = strings.TrimSpace(reply)
+	fmt.Println(reply)
+	if strings.HasSuffix(reply, "(nil)") {
+		// nil bulk string (key not found)
+		json.NewEncoder(w).Encode(map[string]string{"value": ""})
+		return
+	}
+
+	parts := strings.SplitN(reply, "\r\n", 3)
+	if len(parts) < 2 || !strings.HasPrefix(parts[0], "$") {
+		http.Error(w, "Invalid RESP format", http.StatusInternalServerError)
+		return
+	}
+
+	value := parts[1]
+	json.NewEncoder(w).Encode(map[string]string{"value": value})
+
+	// w.Write([]byte(reply))
 }

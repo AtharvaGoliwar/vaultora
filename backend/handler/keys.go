@@ -4,6 +4,7 @@ import (
 	"data-vault/session"
 	"encoding/json"
 	"net/http"
+	"strings"
 )
 
 func KeysHandler(w http.ResponseWriter, r *http.Request) {
@@ -19,20 +20,23 @@ func KeysHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req SetRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
 	reply, err := conn.SendCommand("KEYS", "*")
 	if err != nil {
 		http.Error(w, "Redis error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// resp, _ := conn.ReadReply()
-	// w.Write([]byte(resp))
-	w.Write([]byte(reply))
-	// json.NewEncoder(w).Encode(map[string]string{"value": reply})
+	// Parse RESP manually
+	lines := strings.Split(reply, "\r\n")
+	var keys []string
+	for i := 0; i < len(lines); i++ {
+		if strings.HasPrefix(lines[i], "$") && i+1 < len(lines) {
+			keys = append(keys, lines[i+1])
+			i++ // skip next line (already added)
+		}
+	}
+
+	json.NewEncoder(w).Encode(map[string][]string{
+		"keys": keys,
+	})
 }

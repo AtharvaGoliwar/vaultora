@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import "./DataVault.css";
 // import "./CSS.css";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { UserContext } from "./context/userContext";
 
 const DataVaultApp = () => {
   const [viewMode, setViewMode] = useState("grid");
@@ -14,6 +16,7 @@ const DataVaultApp = () => {
   const [profilePassword, setProfilePassword] = useState("12345");
   const [showPassword, setShowPassword] = useState(false);
   const [currItem, setCurrItem] = useState(null);
+  const navigate = useNavigate();
 
   // Sample data with hidden content
   const vaultItems = [
@@ -143,7 +146,7 @@ const DataVaultApp = () => {
 
   const [vaultItemsNew, setVaultItemsNew] = useState([]);
   const [groupname, setGroupname] = useState("");
-  const [username, setUsername] = useState("");
+  const { username, setUsername } = useContext(UserContext);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -160,7 +163,7 @@ const DataVaultApp = () => {
     const getMe = async () => {
       try {
         let res = await axios.get("http://localhost:8080/me", {
-          headers: { Username: "def" },
+          headers: { Username: username },
         });
         setGroupname(res.data.group);
         // setUsername(res.data.username);
@@ -173,7 +176,7 @@ const DataVaultApp = () => {
       try {
         const res = await axios.get("http://localhost:8080/keys", {
           headers: {
-            Username: "def", // send username here
+            Username: username, // send username here
           },
           // params: {
           //   key: "group1:callfromfrontend", // the key to get
@@ -264,7 +267,7 @@ const DataVaultApp = () => {
       if (item.hiddenContent === undefined) {
         try {
           let res = await axios.get("http://localhost:8080/get", {
-            headers: { Username: "def" },
+            headers: { Username: username },
             params: { key: groupname + ":" + item.name },
           });
           let val = { hiddenContent: res.data.value };
@@ -300,7 +303,7 @@ const DataVaultApp = () => {
         "http://localhost:8080/delete",
         { key: groupname + ":" + keyItem.name },
         {
-          headers: { Username: "def" },
+          headers: { Username: username },
         }
       );
       if (res.data.reply == 1) {
@@ -328,7 +331,7 @@ const DataVaultApp = () => {
       let res = await axios.post(
         "http://localhost:8080/set",
         { key: groupname + ":" + formData.name, value: formData.value },
-        { headers: { Username: "def" } }
+        { headers: { Username: username } }
       );
       console.log(res.data);
       const item = {
@@ -337,7 +340,16 @@ const DataVaultApp = () => {
         type: formData.category,
         encrypted: formData.encrypted,
       };
-      setVaultItemsNew((prev) => [...prev, item]);
+      setVaultItemsNew((prev) => {
+        const exists = prev.some((i) => i.name === item.name);
+
+        if (exists) {
+          return prev.map((i) => (i.name === item.name ? item : i));
+        } else {
+          return [...prev, item];
+        }
+      });
+
       setShowAddModal(false);
       setFormData({ name: "", value: "", category: "", encrypted: false });
     } catch (err) {
@@ -372,6 +384,17 @@ const DataVaultApp = () => {
     return matchesSearch && matchesFilter;
   });
 
+  if (username === null) {
+    return (
+      <>
+        <div>
+          <h1>Authentication Required</h1>
+          {navigate("/")}
+        </div>
+      </>
+    );
+  }
+
   return (
     <div className="vault-app">
       {/* Header */}
@@ -382,7 +405,7 @@ const DataVaultApp = () => {
           <div className="header-left">
             <div className="logo">
               <div className="logo-icon">🔒</div>
-              <h1>SecureVault</h1>
+              <h1>DataVault</h1>
             </div>
           </div>
 
@@ -459,6 +482,18 @@ const DataVaultApp = () => {
                 <div className="storage-fill" style={{ width: "68%" }}></div>
               </div>
               <div className="storage-text">6.8 GB of 10 GB used</div>
+            </div>
+
+            <div>
+              <button
+                className="logout-btn"
+                onClick={() => {
+                  setUsername(null);
+                  navigate("/");
+                }}
+              >
+                Logout
+              </button>
             </div>
           </div>
         </aside>

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"data-vault/session"
+	"data-vault/utils"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -80,7 +81,12 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	value := parts[1]
-	json.NewEncoder(w).Encode(map[string]string{"value": value})
+	decryptedVal, err := utils.Decrypt(value)
+	if err != nil {
+		http.Error(w, "Decryption error", http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"value": decryptedVal})
 
 	// w.Write([]byte(reply))
 }

@@ -2,7 +2,10 @@ package handler
 
 import (
 	"data-vault/session"
+	"data-vault/utils"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -30,7 +33,14 @@ func SetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reply, err := conn.SendCommand("SET", req.Key, req.Value)
+	encryptedVal, err := utils.Encrypt(req.Value)
+	if err != nil {
+		log.Fatalln(err)
+		http.Error(w, "Encryption error", http.StatusInternalServerError)
+		return
+	}
+	fmt.Println("EncryptedVal", encryptedVal)
+	reply, err := conn.SendCommand("SET", req.Key, encryptedVal)
 	if err != nil {
 		http.Error(w, "SET failed", http.StatusInternalServerError)
 		return

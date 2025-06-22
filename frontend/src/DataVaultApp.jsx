@@ -867,7 +867,7 @@ const DataVaultApp = () => {
 
                     {expandedItem === item.id && (
                       <div className="list-expanded-content">
-                        <div className="expanded-header">
+                        <div className="expanded-header-list">
                           <h6>Value</h6>
                           {/* <button
                             className="close-btn"
